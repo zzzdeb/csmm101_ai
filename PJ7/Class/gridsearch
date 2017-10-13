@@ -1,0 +1,149 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Mar 28 19:08:01 2017
+
+@author: zzz
+"""
+
+from __future__ import print_function
+
+import numpy as np
+
+from sklearn import datasets
+from sklearn.model_selection import train_test_split
+from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import classification_report
+
+from sklearn.svm import SVC
+from sklearn.linear_model import LogisticRegression as LRC
+from sklearn.ensemble import RandomForestClassifier as RFC
+from sklearn.tree import DecisionTreeClassifier as DTC
+from sklearn.neighbors import KNeighborsClassifier as KNC
+
+
+print(__doc__)
+
+outl = open("output3.csv", "a")
+
+# Loading the Digits dataset
+data = np.genfromtxt("input3.csv", skip_header=1, delimiter=",")
+
+# To apply an classifier on this data, we need to flatten the image, to
+# turn the data in a (samples, feature) matrix:
+X = data[:,:2]
+Y = data[:,2]
+
+
+# Split the dataset in two equal parts
+X_tr, X_test, Y_tr, Y_test = train_test_split(X, Y, test_size=0.4, random_state=0, stratify=Y)
+
+
+# Set the parameters by cross-validation
+tuned_parameters = [{'kernel': ['rbf'], 'gamma': [0.1, 1],
+                     'C': [0.1, 0.5, 1, 5, 10, 50]},
+                    {'kernel': ['linear'], 'C': [0.1, 0.5, 1, 5, 10, 50]},
+                    {'kernel': ['poly'], 'C': [0.1, 1, 3], 'gamma':[0.1, 1], 'degree':[2,3]}]
+
+tuned_parameters_rbf = [{'kernel': ['rbf'], 'gamma': [0.1, 1],
+                     'C': [0.1, 0.5, 1, 5, 10, 50, 100]}]
+tuned_parameters_lin= [{'kernel': ['linear'], 'C': [0.1, 0.5, 1, 5, 10, 50, 100]}]
+tuned_parameters_poly=[{'kernel': ['poly'], 'C': [0.1, 1, 3], 'gamma':[0.1, 1], 'degree':[2,3,4]}]
+
+
+tuned_parameters_lrc = [{'C': [0.1, 0.5, 1, 5, 10, 50, 100]}]
+
+tuned_parameters_knc = [{'n_neighbors': [i for i in range(1,51)],
+                        'leaf_size' : [i for i in range(5,61,5)]}]
+
+tuned_parameters_rfs = {'kernel': ['linear'], 'C': [0.1, 0.5, 1, 5, 10, 50]},
+
+tuned_parameters_dtc = {'max_depth': [i for i in range(1,51)],
+                                      'min_samples_split': [i for i in range(2,11)]}
+
+tuned_parameters_rfc = {'max_depth': [i for i in range(1,51)],
+                                      'min_samples_split': [i for i in range(2,11)]}
+
+
+scores = ['precision', 'recall']
+
+#for score in scores:
+print("# Tuning hyper-parameters for %s" % score)
+print()
+
+#    clf = GridSearchCV(SVC(C=1), tuned_parameters, cv=5)
+clf = GridSearchCV(RFC(), tuned_parameters_rfc, cv=5)
+clf.fit(X_tr, Y_tr)
+
+print("Grid scores on development set:")
+print()
+means = clf.cv_results_['mean_test_score']
+stds = clf.cv_results_['std_test_score']
+for mean, std, params in zip(means, stds, clf.cv_results_['params']):
+    print("%0.3f (+/-%0.03f) for %r"
+          % (mean, std * 2, params))
+print()
+
+print("Detailed classification report:")
+print()
+print("The model is trained on the full development set.")
+print("The scores are computed on the full evaluation set.")
+print()
+y_true, y_pred = Y_test, clf.predict(X_test)
+print(classification_report(y_true, y_pred))
+print()
+print("Best parameters set found on development set:")
+print()
+print(clf.best_params_)
+print()
+
+clf.score(X_test, Y_test)
+
+outl.write("random_forest, "+str(clf.best_score_)+","+str(clf.score(X_test, Y_test))+"\n")
+
+outl.close()
+
+outl = open("output3.csv", "a")
+
+clf = GridSearchCV(DTC(), tuned_parameters_dtc, cv=5)
+clf.fit(X_tr, Y_tr)
+
+outl.write("decision_tree, "+str(clf.best_score_)+","+str(clf.score(X_test, Y_test))+"\n")
+
+outl.close()
+
+
+outl = open("output3.csv", "a")
+
+clf = GridSearchCV(SVC(), tuned_parameters_lin, cv=5)
+clf.fit(X_tr, Y_tr)
+
+outl.write("svm_linear, "+str(clf.best_score_)+","+str(clf.score(X_test, Y_test))+"\n")
+
+outl.close()
+
+
+outl = open("output3.csv", "a")
+
+clf = GridSearchCV(SVC(), tuned_parameters_rbf, cv=5)
+clf.fit(X_tr, Y_tr)
+
+outl.write("svm_rbf, "+str(clf.best_score_)+","+str(clf.score(X_test, Y_test))+"\n")
+
+outl.close()
+
+
+
+outl = open("output3.csv", "a")
+
+clf = GridSearchCV(SVC(), tuned_parameters_poly, cv=5)
+clf.fit(X_tr, Y_tr)
+
+outl.write("svm_polynomial, "+str(clf.best_score_)+","+str(clf.score(X_test, Y_test))+"\n")
+
+outl.close()
+
+
+
+# Note the problem is too easy: the hyperparameter plateau is too flat and the
+# output model is the same for precision and recall with ties in quality.
